@@ -34,6 +34,9 @@ class MainActivity : ComponentActivity() {
     // Fullscreen toggle functionality
     private var lastUpPressTime = 0L
     private var lastDownPressTime = 0L
+    
+    // Play/pause toggle functionality  
+    private var lastCenterPressTime = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -116,6 +119,28 @@ class MainActivity : ComponentActivity() {
         
         webView.evaluateJavascript(jsCode) { result ->
             debugCoordinates.text = "Fullscreen: $result"
+        }
+    }
+    
+    private fun toggleVideoPlayPause() {
+        val jsCode = """
+            (function() {
+                var playBtn = document.querySelector('div#video-controller div.btn-wrap:not(.play) div.play');
+                if (playBtn) {
+                    playBtn.click();
+                    return "Play button clicked";
+                } 
+                var pauseBtn = document.querySelector('div#video-controller div.btn-wrap.play div.pause');
+                if (pauseBtn) {
+                    pauseBtn.click();
+                    return "Pause button clicked";
+                }
+                return "Neither Play or Pause button found";
+            })();
+        """
+        
+        webView.evaluateJavascript(jsCode) { result ->
+            debugCoordinates.text = "Play/Pause: $result"
         }
     }
     
@@ -237,7 +262,17 @@ class MainActivity : ComponentActivity() {
                 }
                 KeyEvent.KEYCODE_DPAD_CENTER -> {
                     showCursor() // Show cursor when clicking
-                    simulateClick(virtualCursor.translationX, virtualCursor.translationY)
+                    
+                    val currentTime = System.currentTimeMillis()
+                    if (currentTime - lastCenterPressTime < doublePressDelay) {
+                        // Double tap detected - toggle play/pause
+                        toggleVideoPlayPause()
+                        lastCenterPressTime = 0L // Reset to prevent triple-tap
+                    } else {
+                        // Single tap - normal click behavior
+                        simulateClick(virtualCursor.translationX, virtualCursor.translationY)
+                        lastCenterPressTime = currentTime
+                    }
                     return true
                 }
             }
