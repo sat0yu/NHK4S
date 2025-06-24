@@ -16,13 +16,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var virtualCursor: ImageView
     private lateinit var debugCoordinates: TextView
     
-    // Debug flag - set to true to show cursor coordinates
+    // Configuration
     private val showDebugInfo = false
-    
-    // Virtual cursor movement and scroll parameters
     private val movementSpeed = 20f
     private val scrollThreshold = 200f
     private val scrollAmount = 60
+    private val cursorMargin = 50f
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,13 +37,11 @@ class MainActivity : ComponentActivity() {
         virtualCursor = findViewById(R.id.virtualCursor)
         debugCoordinates = findViewById(R.id.debugCoordinates)
         
-        // Show/hide debug info based on flag
         debugCoordinates.visibility = if (showDebugInfo) android.view.View.VISIBLE else android.view.View.GONE
         
         // Center cursor on screen
         val screenWidth = resources.displayMetrics.widthPixels.toFloat()
         val screenHeight = resources.displayMetrics.heightPixels.toFloat()
-        
         virtualCursor.translationX = screenWidth / 2f
         virtualCursor.translationY = screenHeight / 2f
         
@@ -65,14 +62,11 @@ class MainActivity : ComponentActivity() {
     }
     
     private fun setupFocus() {
-        // Ensure D-Pad events are captured
         window.decorView.apply {
             isFocusable = true
             isFocusableInTouchMode = true
             requestFocus()
         }
-        
-        // Prevent WebView from stealing focus
         webView.isFocusable = false
         webView.isFocusableInTouchMode = false
     }
@@ -81,41 +75,31 @@ class MainActivity : ComponentActivity() {
         webView.scrollBy(0, deltaY)
     }
     
+    private fun getCursorCenter(): Pair<Float, Float> {
+        return Pair(
+            virtualCursor.translationX + (virtualCursor.width / 2f),
+            virtualCursor.translationY + (virtualCursor.height / 2f)
+        )
+    }
+    
     private fun updateDebugInfo() {
-        val cursorCenterX = virtualCursor.translationX + (virtualCursor.width / 2f)
-        val cursorCenterY = virtualCursor.translationY + (virtualCursor.height / 2f)
-        debugCoordinates.text = "Cursor: X=${cursorCenterX.toInt()}, Y=${cursorCenterY.toInt()}"
+        val (centerX, centerY) = getCursorCenter()
+        debugCoordinates.text = "Cursor: X=${centerX.toInt()}, Y=${centerY.toInt()}"
     }
     
     private fun simulateClick(x: Float, y: Float) {
-        // Calculate cursor center position for accurate clicking
-        val cursorCenterX = x + (virtualCursor.width / 2f)
-        val cursorCenterY = y + (virtualCursor.height / 2f)
-        
-        // Use native Android touch events
-        simulateNativeTouch(cursorCenterX, cursorCenterY)
+        val (centerX, centerY) = getCursorCenter()
+        simulateNativeTouch(centerX, centerY)
     }
     
     private fun simulateNativeTouch(x: Float, y: Float) {
-        // Create native Android touch events
         val downTime = SystemClock.uptimeMillis()
-        val eventTime = SystemClock.uptimeMillis()
-        
-        // Touch down event
-        val downEvent = MotionEvent.obtain(
-            downTime, eventTime, MotionEvent.ACTION_DOWN, x, y, 0
-        )
-        
-        // Touch up event
-        val upEvent = MotionEvent.obtain(
-            downTime, eventTime + 100, MotionEvent.ACTION_UP, x, y, 0
-        )
+        val downEvent = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, x, y, 0)
+        val upEvent = MotionEvent.obtain(downTime, downTime + 100, MotionEvent.ACTION_UP, x, y, 0)
         
         try {
-            // Dispatch touch events to WebView
             webView.dispatchTouchEvent(downEvent)
             webView.dispatchTouchEvent(upEvent)
-            
             debugCoordinates.text = "Native Touch: X=${x.toInt()}, Y=${y.toInt()}\nEvents dispatched"
         } catch (e: Exception) {
             debugCoordinates.text = "Native Touch failed: ${e.message}"
@@ -139,48 +123,43 @@ class MainActivity : ComponentActivity() {
         return super.onKeyDown(keyCode, event)
     }
     
+    private fun moveCursor(keyCode: Int) {
+        val screenWidth = resources.displayMetrics.widthPixels.toFloat()
+        val screenHeight = resources.displayMetrics.heightPixels.toFloat()
+        
+        when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_UP -> {
+                val newY = (virtualCursor.translationY - movementSpeed).coerceAtLeast(0f)
+                virtualCursor.translationY = newY
+                if (newY <= scrollThreshold) scrollWebView(-scrollAmount)
+            }
+            KeyEvent.KEYCODE_DPAD_DOWN -> {
+                val maxY = screenHeight - cursorMargin
+                val newY = (virtualCursor.translationY + movementSpeed).coerceAtMost(maxY)
+                virtualCursor.translationY = newY
+                if (screenHeight - newY <= scrollThreshold) scrollWebView(scrollAmount)
+            }
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                val newX = (virtualCursor.translationX - movementSpeed).coerceAtLeast(0f)
+                virtualCursor.translationX = newX
+            }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                val maxX = screenWidth - cursorMargin
+                val newX = (virtualCursor.translationX + movementSpeed).coerceAtMost(maxX)
+                virtualCursor.translationX = newX
+            }
+        }
+        updateDebugInfo()
+    }
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) {
-            val screenWidth = resources.displayMetrics.widthPixels.toFloat()
-            val screenHeight = resources.displayMetrics.heightPixels.toFloat()
-            
             when (event.keyCode) {
-                KeyEvent.KEYCODE_DPAD_UP -> {
-                    val newY = (virtualCursor.translationY - movementSpeed).coerceAtLeast(0f)
-                    virtualCursor.translationY = newY
-                    updateDebugInfo()
-                    
-                    if (newY <= scrollThreshold) {
-                        scrollWebView(-scrollAmount)
-                    }
-                    return true
-                }
-                KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    val maxY = screenHeight - 50f
-                    val newY = (virtualCursor.translationY + movementSpeed).coerceAtMost(maxY)
-                    virtualCursor.translationY = newY
-                    updateDebugInfo()
-                    
-                    if (screenHeight - newY <= scrollThreshold) {
-                        scrollWebView(scrollAmount)
-                    }
-                    return true
-                }
-                KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    val newX = (virtualCursor.translationX - movementSpeed).coerceAtLeast(0f)
-                    virtualCursor.translationX = newX
-                    updateDebugInfo()
-                    return true
-                }
-                KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    val maxX = screenWidth - 50f
-                    val newX = (virtualCursor.translationX + movementSpeed).coerceAtMost(maxX)
-                    virtualCursor.translationX = newX
-                    updateDebugInfo()
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    moveCursor(event.keyCode)
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_CENTER -> {
-                    // Simulate click at cursor position
                     simulateClick(virtualCursor.translationX, virtualCursor.translationY)
                     return true
                 }
@@ -189,7 +168,6 @@ class MainActivity : ComponentActivity() {
         return super.dispatchKeyEvent(event)
     }
 
-    // Handle back button for WebView navigation
     override fun onBackPressed() {
         if (webView.canGoBack()) {
             webView.goBack()
