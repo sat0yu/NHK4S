@@ -1,6 +1,8 @@
 package com.sat0yu.nhk4s
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -22,6 +24,11 @@ class MainActivity : ComponentActivity() {
     private val scrollThreshold = 200f
     private val scrollAmount = 60
     private val cursorMargin = 50f
+    private val cursorHideDelay = 5000L // 5 seconds
+    
+    // Cursor auto-hide functionality
+    private val hideHandler = Handler(Looper.getMainLooper())
+    private val hideRunnable = Runnable { hideCursor() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,6 +53,7 @@ class MainActivity : ComponentActivity() {
         virtualCursor.translationY = screenHeight / 2f
         
         updateDebugInfo()
+        startCursorHideTimer()
     }
     
     private fun setupWebView() {
@@ -73,6 +81,20 @@ class MainActivity : ComponentActivity() {
     
     private fun scrollWebView(deltaY: Int) {
         webView.scrollBy(0, deltaY)
+    }
+    
+    private fun startCursorHideTimer() {
+        hideHandler.removeCallbacks(hideRunnable)
+        hideHandler.postDelayed(hideRunnable, cursorHideDelay)
+    }
+    
+    private fun showCursor() {
+        virtualCursor.visibility = android.view.View.VISIBLE
+        startCursorHideTimer()
+    }
+    
+    private fun hideCursor() {
+        virtualCursor.visibility = android.view.View.INVISIBLE
     }
     
     private fun getCursorCenter(): Pair<Float, Float> {
@@ -124,6 +146,8 @@ class MainActivity : ComponentActivity() {
     }
     
     private fun moveCursor(keyCode: Int) {
+        showCursor() // Show cursor when moving
+        
         val screenWidth = resources.displayMetrics.widthPixels.toFloat()
         val screenHeight = resources.displayMetrics.heightPixels.toFloat()
         
@@ -160,6 +184,7 @@ class MainActivity : ComponentActivity() {
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_CENTER -> {
+                    showCursor() // Show cursor when clicking
                     simulateClick(virtualCursor.translationX, virtualCursor.translationY)
                     return true
                 }
@@ -174,5 +199,10 @@ class MainActivity : ComponentActivity() {
         } else {
             super.onBackPressed()
         }
+    }
+    
+    override fun onDestroy() {
+        hideHandler.removeCallbacks(hideRunnable)
+        super.onDestroy()
     }
 }
