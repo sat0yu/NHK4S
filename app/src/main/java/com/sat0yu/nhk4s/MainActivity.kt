@@ -25,10 +25,15 @@ class MainActivity : ComponentActivity() {
     private val scrollAmount = 60
     private val cursorMargin = 50f
     private val cursorHideDelay = 5000L // 5 seconds
+    private val doublePressDelay = 500L // 500ms for double press detection
     
     // Cursor auto-hide functionality
     private val hideHandler = Handler(Looper.getMainLooper())
     private val hideRunnable = Runnable { hideCursor() }
+    
+    // Fullscreen toggle functionality
+    private var lastUpPressTime = 0L
+    private var lastDownPressTime = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -97,6 +102,50 @@ class MainActivity : ComponentActivity() {
         virtualCursor.visibility = android.view.View.INVISIBLE
     }
     
+    private fun toggleVideoFullscreen() {
+        val jsCode = """
+            (function() {
+                var fullscreenBtn = document.querySelector('div#video-controller div.fullsceen-btn > div.btn');
+                if (fullscreenBtn) {
+                    fullscreenBtn.click();
+                } else {
+                    debugCoordinates.text = "Fullscreen button not found";
+                }
+            })();
+        """
+        
+        webView.evaluateJavascript(jsCode) { result ->
+            debugCoordinates.text = "Fullscreen: $result"
+        }
+    }
+    
+    private fun checkDoublePressForFullscreen(keyCode: Int) {
+        val currentTime = System.currentTimeMillis()
+        
+        when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_UP -> {
+                if (currentTime - lastDownPressTime < doublePressDelay) {
+                    // Up pressed shortly after Down - toggle fullscreen
+                    toggleVideoFullscreen()
+                    lastUpPressTime = 0L
+                    lastDownPressTime = 0L
+                    return
+                }
+                lastUpPressTime = currentTime
+            }
+            KeyEvent.KEYCODE_DPAD_DOWN -> {
+                if (currentTime - lastUpPressTime < doublePressDelay) {
+                    // Down pressed shortly after Up - toggle fullscreen
+                    toggleVideoFullscreen()
+                    lastUpPressTime = 0L
+                    lastDownPressTime = 0L
+                    return
+                }
+                lastDownPressTime = currentTime
+            }
+        }
+    }
+    
     private fun getCursorCenter(): Pair<Float, Float> {
         return Pair(
             virtualCursor.translationX + (virtualCursor.width / 2f),
@@ -147,6 +196,9 @@ class MainActivity : ComponentActivity() {
     
     private fun moveCursor(keyCode: Int) {
         showCursor() // Show cursor when moving
+        
+        // Check for double press (Up->Down or Down->Up) for fullscreen toggle
+        checkDoublePressForFullscreen(keyCode)
         
         val screenWidth = resources.displayMetrics.widthPixels.toFloat()
         val screenHeight = resources.displayMetrics.heightPixels.toFloat()
