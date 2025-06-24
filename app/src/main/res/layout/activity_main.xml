@@ -16,4 +16,18 @@
         android:src="@drawable/cursor_pointer"
         android:visibility="visible" />
 
+    <!-- Debug coordinates display -->
+    <TextView
+        android:id="@+id/debugCoordinates"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="16dp"
+        android:background="#80000000"
+        android:padding="8dp"
+        android:text="X: 0, Y: 0"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:visibility="visible" />
+
 </FrameLayout>
