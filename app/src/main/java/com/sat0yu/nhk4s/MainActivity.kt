@@ -204,20 +204,6 @@ class MainActivity : ComponentActivity() {
             upEvent.recycle()
         }
     }
-
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        when (keyCode) {
-            KeyEvent.KEYCODE_PAGE_UP -> {
-                scrollWebView(-(resources.displayMetrics.heightPixels / 2))
-                return true
-            }
-            KeyEvent.KEYCODE_PAGE_DOWN -> {
-                scrollWebView(resources.displayMetrics.heightPixels / 2)
-                return true
-            }
-        }
-        return super.onKeyDown(keyCode, event)
-    }
     
     private fun moveCursor(keyCode: Int) {
         showCursor() // Show cursor when moving
@@ -252,32 +238,39 @@ class MainActivity : ComponentActivity() {
         }
         updateDebugInfo()
     }
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN) {
-            when (event.keyCode) {
-                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
-                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    moveCursor(event.keyCode)
-                    return true
+    
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                moveCursor(keyCode)
+                return true
+            }
+            KeyEvent.KEYCODE_DPAD_CENTER -> {
+                showCursor() // Show cursor when clicking
+                
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastCenterPressTime < doublePressDelay) {
+                    // Double tap detected - toggle play/pause
+                    toggleVideoPlayPause()
+                    lastCenterPressTime = 0L // Reset to prevent triple-tap
+                } else {
+                    // Single tap - normal click behavior
+                    simulateClick(virtualCursor.translationX, virtualCursor.translationY)
+                    lastCenterPressTime = currentTime
                 }
-                KeyEvent.KEYCODE_DPAD_CENTER -> {
-                    showCursor() // Show cursor when clicking
-                    
-                    val currentTime = System.currentTimeMillis()
-                    if (currentTime - lastCenterPressTime < doublePressDelay) {
-                        // Double tap detected - toggle play/pause
-                        toggleVideoPlayPause()
-                        lastCenterPressTime = 0L // Reset to prevent triple-tap
-                    } else {
-                        // Single tap - normal click behavior
-                        simulateClick(virtualCursor.translationX, virtualCursor.translationY)
-                        lastCenterPressTime = currentTime
-                    }
-                    return true
-                }
+                return true
+            }
+            KeyEvent.KEYCODE_PAGE_UP -> {
+                scrollWebView(-(resources.displayMetrics.heightPixels / 2))
+                return true
+            }
+            KeyEvent.KEYCODE_PAGE_DOWN -> {
+                scrollWebView(resources.displayMetrics.heightPixels / 2)
+                return true
             }
         }
-        return super.dispatchKeyEvent(event)
+        return super.onKeyDown(keyCode, event)
     }
 
     override fun onBackPressed() {
