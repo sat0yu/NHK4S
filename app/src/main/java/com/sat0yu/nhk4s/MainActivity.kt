@@ -31,11 +31,7 @@ class MainActivity : ComponentActivity() {
     private val hideHandler = Handler(Looper.getMainLooper())
     private val hideRunnable = Runnable { hideCursor() }
     
-    // Fullscreen toggle functionality
-    private var lastUpPressTime = 0L
-    private var lastDownPressTime = 0L
-    
-    // Play/pause toggle functionality  
+    // Fullscreen + Play/pause toggle functionality  
     private var lastCenterPressTime = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,69 +101,58 @@ class MainActivity : ComponentActivity() {
         virtualCursor.visibility = android.view.View.INVISIBLE
     }
     
-    private fun toggleVideoFullscreen() {
+    private fun toggleFullscreenAndPlayPause() {
         val jsCode = """
             (function() {
+                // Check if video is currently playing (has .play class)
+                var mediaContainer = document.querySelector('div#media_container.play');
+                var isPlaying = mediaContainer !== null;
+                
+                // Get fullscreen and play/pause buttons
                 var fullscreenBtn = document.querySelector('div#video-controller div.fullsceen-btn > div.btn');
-                if (fullscreenBtn) {
-                    fullscreenBtn.click();
-                } else {
-                    debugCoordinates.text = "Fullscreen button not found";
-                }
-            })();
-        """
-        
-        webView.evaluateJavascript(jsCode) { result ->
-            debugCoordinates.text = "Fullscreen: $result"
-        }
-    }
-    
-    private fun toggleVideoPlayPause() {
-        val jsCode = """
-            (function() {
                 var playBtn = document.querySelector('div#video-controller div.btn-wrap:not(.play) div.play');
-                if (playBtn) {
-                    playBtn.click();
-                    return "Play button clicked";
-                } 
                 var pauseBtn = document.querySelector('div#video-controller div.btn-wrap.play div.pause');
-                if (pauseBtn) {
-                    pauseBtn.click();
-                    return "Pause button clicked";
+                
+                var results = [];
+                
+                if (isPlaying) {
+                    // Currently playing - exit fullscreen and pause
+                    if (fullscreenBtn) {
+                        fullscreenBtn.click();
+                        results.push("Fullscreen exited");
+                    } else {
+                        results.push("Fullscreen button not found");
+                    }
+                    
+                    if (pauseBtn) {
+                        pauseBtn.click();
+                        results.push("Video paused");
+                    } else {
+                        results.push("Pause button not found");
+                    }
+                } else {
+                    // Currently paused - enter fullscreen and play
+                    if (fullscreenBtn) {
+                        fullscreenBtn.click();
+                        results.push("Fullscreen entered");
+                    } else {
+                        results.push("Fullscreen button not found");
+                    }
+                    
+                    if (playBtn) {
+                        playBtn.click();
+                        results.push("Video playing");
+                    } else {
+                        results.push("Play button not found");
+                    }
                 }
-                return "Neither Play or Pause button found";
+                
+                return results.join(", ");
             })();
         """
         
         webView.evaluateJavascript(jsCode) { result ->
-            debugCoordinates.text = "Play/Pause: $result"
-        }
-    }
-    
-    private fun checkDoublePressForFullscreen(keyCode: Int) {
-        val currentTime = System.currentTimeMillis()
-        
-        when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP -> {
-                if (currentTime - lastDownPressTime < doublePressDelay) {
-                    // Up pressed shortly after Down - toggle fullscreen
-                    toggleVideoFullscreen()
-                    lastUpPressTime = 0L
-                    lastDownPressTime = 0L
-                    return
-                }
-                lastUpPressTime = currentTime
-            }
-            KeyEvent.KEYCODE_DPAD_DOWN -> {
-                if (currentTime - lastUpPressTime < doublePressDelay) {
-                    // Down pressed shortly after Up - toggle fullscreen
-                    toggleVideoFullscreen()
-                    lastUpPressTime = 0L
-                    lastDownPressTime = 0L
-                    return
-                }
-                lastDownPressTime = currentTime
-            }
+            debugCoordinates.text = "Result: $result"
         }
     }
     
@@ -207,9 +192,6 @@ class MainActivity : ComponentActivity() {
     
     private fun moveCursor(keyCode: Int) {
         showCursor() // Show cursor when moving
-        
-        // Check for double press (Up->Down or Down->Up) for fullscreen toggle
-        checkDoublePressForFullscreen(keyCode)
         
         val screenWidth = resources.displayMetrics.widthPixels.toFloat()
         val screenHeight = resources.displayMetrics.heightPixels.toFloat()
@@ -251,8 +233,8 @@ class MainActivity : ComponentActivity() {
                 
                 val currentTime = System.currentTimeMillis()
                 if (currentTime - lastCenterPressTime < doublePressDelay) {
-                    // Double tap detected - toggle play/pause
-                    toggleVideoPlayPause()
+                    // Double tap detected - toggle fullscreen and play/pause
+                    toggleFullscreenAndPlayPause()
                     lastCenterPressTime = 0L // Reset to prevent triple-tap
                 } else {
                     // Single tap - normal click behavior
