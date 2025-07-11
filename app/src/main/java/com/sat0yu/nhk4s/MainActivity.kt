@@ -1,11 +1,13 @@
 package com.sat0yu.nhk4s
 
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -26,6 +28,12 @@ class MainActivity : ComponentActivity() {
     private val cursorMargin = 50f
     private val cursorHideDelay = 5000L // 5 seconds
     private val doublePressDelay = 500L // 500ms for double press detection
+    
+    // Allowed domains for security
+    private val allowedDomains = listOf(
+        "nhk.or.jp",
+        "www.nhk.or.jp"
+    )
     
     // Cursor auto-hide functionality
     private val hideHandler = Handler(Looper.getMainLooper())
@@ -68,8 +76,37 @@ class MainActivity : ComponentActivity() {
             settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             settings.setSupportZoom(false)
             
-            webViewClient = WebViewClient()
+            webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                    val url = request?.url?.toString() ?: return true
+                    return if (isUrlAllowed(url)) {
+                        false // Allow the WebView to handle the URL
+                    } else {
+                        true // Block the URL
+                    }
+                }
+                
+                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                    return if (url != null && isUrlAllowed(url)) {
+                        false // Allow the WebView to handle the URL
+                    } else {
+                        true // Block the URL
+                    }
+                }
+            }
             loadUrl("https://www.nhk.or.jp/school/")
+        }
+    }
+    
+    private fun isUrlAllowed(url: String): Boolean {
+        return try {
+            val uri = Uri.parse(url)
+            val host = uri.host?.lowercase() ?: return false
+            allowedDomains.any { domain -> 
+                host == domain || host.endsWith(".$domain")
+            }
+        } catch (e: Exception) {
+            false
         }
     }
     

@@ -20,6 +20,7 @@ This application is a browser app developed to display the NHK for School websit
 - Optimized display of NHK for School website for Android TV
 - Navigation compatible with Google TV Streamer remote control
 - Full-screen content viewing
+- **Domain restriction**: Only allows access to NHK domains for security
 
 ## Technical Specifications
 
@@ -62,6 +63,7 @@ cd NHK4S
 - No distribution on Google Play Store
 - Installation via sideloading only
 - Please comply with NHK for School's terms of use
+- **Security**: Application restricts access to NHK domains only to prevent malicious use
 
 ## License
 
